@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pale Blue Dot — Interactive 3D Earth</title>
+  <meta name="description" content="An interactive 3D Earth with day and night, clouds and atmosphere. Drag to rotate, scroll to zoom. Switch between Earth, the Moon and Mars below." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="scene" aria-label="Interactive 3D model of planet Earth" role="img"></canvas>
+
+  <div id="loader" role="status">
+    <div class="loader-ring"></div>
+    <p>Unpacking the planet…</p>
+  </div>
+
+  <header class="title">
+    <h1>Pale Blue Dot</h1>
+    <p>Our only home, turning slowly in the dark. Drag to rotate, scroll to zoom. Switch between Earth, the Moon and Mars below.</p>
+    <div class="views" role="group" aria-label="What to show">
+      <button data-view="all" class="is-on" aria-pressed="true">Earth + Moon</button>
+      <button data-view="earth" aria-pressed="false">Earth</button>
+      <button data-view="moon" aria-pressed="false">Moon</button>
+      <button data-view="mars" aria-pressed="false">Mars</button>
+    </div>
+  </header>
+
+  <nav class="controls" aria-label="Globe controls">
+    <button id="btn-rotate" class="pill is-on" aria-pressed="true">Auto-rotate</button>
+    <button id="btn-clouds" class="pill is-on" aria-pressed="true">Clouds</button>
+    <button id="btn-night" class="pill is-on" aria-pressed="true">Day and night</button>
+    <button id="btn-orbits" class="pill is-on" aria-pressed="true">Orbits</button>
+    <button id="btn-iss" class="pill is-on" aria-pressed="true">ISS live</button>
+    <button id="btn-reset" class="pill">Reset view</button>
+  </nav>
+
+  <div id="labels" aria-hidden="true"></div>
+
+  <p class="hint" id="hint">Drag the globe</p>
+  <p class="iss-readout" id="iss-readout" role="status" hidden></p>
+  <p class="credit" id="credit"></p>
+
+  <aside class="city-panel" id="city-panel" aria-label="City picker">
+    <div class="picker">
+      <label class="search" for="city-input">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13.2 13.2 17 17"/></svg>
+        <input id="city-input" type="text" role="combobox" aria-expanded="false" aria-controls="city-results" aria-autocomplete="list" placeholder="Find a city, or click a dot" aria-label="Find a city" autocomplete="off" spellcheck="false" />
+        <svg class="chev" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg>
+      </label>
+      <ul id="city-results" class="results" role="listbox" aria-label="Cities" hidden></ul>
+    </div>
+
+    <div class="city-card" id="city-card" hidden>
+      <div class="city-head">
+        <div class="city-title">
+          <h2 id="city-name"></h2>
+          <p id="city-meta"></p>
+        </div>
+        <button id="btn-city-clear" class="icon-btn" type="button" aria-label="Clear city">
+          <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15"/></svg>
+        </button>
+      </div>
+
+      <section class="group">
+        <p class="go-label" id="dest-label">Destination</p>
+        <div class="seg" id="dest-actions" role="group" aria-labelledby="dest-label">
+          <button class="pill is-on" type="button" data-dest="earth" aria-pressed="true">Earth</button>
+          <button class="pill" type="button" data-dest="moon" aria-pressed="false">Moon</button>
+          <button class="pill" type="button" data-dest="mars" aria-pressed="false">Mars</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <p class="go-label" id="orbit-label">Orbit</p>
+        <div class="city-actions" id="orbit-actions" role="group" aria-labelledby="orbit-label"></div>
+        <p id="orbit-info"></p>
+      </section>
+
+      <section class="group site" id="site-card" hidden aria-labelledby="site-label">
+        <div class="group-head">
+          <p class="go-label" id="site-label">Launch guide: the right figures</p>
+          <div class="group-tools"><button id="site-apply" class="text-btn" type="button" hidden>Use these figures</button></div>
+        </div>
+        <p class="fine" id="site-intro"></p>
+        <table class="guide-table" id="guide-table">
+          <thead><tr><th scope="col">Figure</th><th scope="col">Right</th><th scope="col">Yours</th></tr></thead>
+          <tbody id="guide-body"></tbody>
+        </table>
+        <dl class="report-grid site-grid" id="site-grid"></dl>
+        <p class="go-label sub">Limits the launch checks</p>
+        <ul class="fc-checks" id="guide-limits"></ul>
+        <p class="fine" id="site-note"></p>
+      </section>
+
+      <section class="group">
+        <div class="group-head">
+          <p class="go-label" id="mission-label">Rocket setup</p>
+          <div class="group-tools">
+            <button id="mission-reset" class="text-btn" type="button" hidden>Reset</button>
+          </div>
+        </div>
+        <dl class="stats" id="mission-stats" aria-labelledby="mission-label">
+          <div class="stat s-fuel"><dt><label for="m-fuel">Fuel</label></dt><dd><input id="m-fuel" type="number" value="0" min="0" step="any" inputmode="decimal" /><span class="u">t</span></dd><i class="bar"><b id="m-fuel-bar"></b></i></div>
+          <div class="stat s-mass"><dt><label for="m-mass">Mass</label></dt><dd><input id="m-mass" type="number" value="0" min="0" step="any" inputmode="decimal" /><span class="u">t</span></dd><i class="bar"><b id="m-mass-bar"></b></i></div>
+          <div class="stat s-thrust"><dt><label for="m-thrust">Thrust</label></dt><dd><input id="m-thrust" type="number" value="0" min="0" step="any" inputmode="decimal" /><span class="u">MN</span></dd><i class="bar"><b id="m-thrust-bar"></b></i></div>
+          <div class="stat s-power"><dt><label for="m-kw">Power</label></dt><dd><input id="m-kw" type="number" value="0" min="0" step="any" inputmode="decimal" /><span class="u">kW</span></dd><i class="bar"><b id="m-kw-bar"></b></i></div>
+          <div class="stat s-budget"><dt><label for="m-budget">Budget</label></dt><dd><span class="u pre">$</span><input id="m-budget" type="number" value="0" min="0" step="any" inputmode="decimal" /><span class="u">M</span></dd><i class="bar"><b id="m-budget-bar"></b></i></div>
+          <div class="stat s-payload is-derived"><dt><label for="m-payload">Payload</label></dt><dd><input id="m-payload" type="number" value="0" readonly tabindex="-1" /><span class="u">t</span></dd><i class="bar"><b id="m-payload-bar"></b></i></div>
+        </dl>
+
+        <p class="go-label sub" id="engine-label">Engine</p>
+        <div class="seg" id="engine-actions" role="group" aria-labelledby="engine-label">
+          <button class="pill" type="button" data-engine="kerolox" aria-pressed="false">Kerolox</button>
+          <button class="pill" type="button" data-engine="methalox" aria-pressed="false">Methalox</button>
+          <button class="pill" type="button" data-engine="hydrolox" aria-pressed="false">Hydrolox</button>
+        </div>
+        <p class="go-label sub" id="stage-label">Stages</p>
+        <div class="seg seg4" id="stage-actions" role="group" aria-labelledby="stage-label">
+          <button class="pill" type="button" data-stages="1" aria-pressed="false">1</button>
+          <button class="pill" type="button" data-stages="2" aria-pressed="false">2</button>
+          <button class="pill" type="button" data-stages="3" aria-pressed="false">3</button>
+          <button class="pill" type="button" data-stages="4" aria-pressed="false">4</button>
+        </div>
+        <p class="design-cost" id="design-cost"></p>
+      </section>
+
+      <section class="report forecast" id="forecast" hidden aria-live="polite">
+        <div class="report-head"><span class="report-dot" aria-hidden="true"></span><h3 id="fc-title"></h3></div>
+        <p id="fc-text"></p>
+        <svg id="fc-svg" viewBox="0 0 300 130" role="img" aria-label="Predicted ascent path" hidden></svg>
+        <ul id="fc-checks" class="fc-checks"></ul>
+        <p class="fine">Prediction from the rocket equation, using the same rules as the real launch. It updates as you change any figure.</p>
+      </section>
+
+      <section class="report" id="flight-report" hidden aria-live="polite">
+        <div class="report-head"><span class="report-dot" aria-hidden="true"></span><h3 id="report-title"></h3></div>
+        <p id="report-text"></p>
+        <dl class="report-grid" id="report-grid"></dl>
+        <details class="report-more">
+          <summary>How this was worked out</summary>
+          <div id="report-detail"></div>
+        </details>
+      </section>
+
+      <div class="launch-bar">
+        <p id="launch-msg" role="status" hidden></p>
+        <button id="btn-launch" class="pill launch" type="button" disabled>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M10 1.5c2.6 1.9 4 4.7 4 8l1.6 2.7c.2.4 0 .8-.4.8H4.8c-.4 0-.6-.4-.4-.8L6 9.5c0-3.3 1.4-6.1 4-8Zm0 5.2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8.4 14.6h3.2L10 18.5l-1.6-3.9Z"/></svg>
+          Launch rocket
+        </button>
+        <p id="trip-status" aria-live="polite"></p>
+        <button id="btn-clear" class="pill clear" type="button" hidden>Clear</button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
